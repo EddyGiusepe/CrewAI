@@ -1,0 +1,12 @@
+[project]
+name = "building-agents-with-crewai"
+version = "0.1.0"
+description = "A CrewAI é uma framework que permite aos desenvolvedores criar e implementar fluxos de trabalho automatizados usando vários agentes de IA que colaboram para executar tarefas complexas."
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = []
+
+[dependency-groups]
+dev = [
+    "black>=25.1.0",
+]
