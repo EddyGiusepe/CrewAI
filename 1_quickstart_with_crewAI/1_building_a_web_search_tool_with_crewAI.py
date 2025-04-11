@@ -20,14 +20,14 @@ print(text)
 
 # 2. Grave o texto extraído em um arquivo:
 # Certifique-se de que o diretório existe
-os.makedirs("data", exist_ok=True)
+os.makedirs("../data", exist_ok=True)
 
 # Initialize the tool
 file_writer_tool = FileWriterTool()
 
 # Write content to a file in a specified directory
 result = file_writer_tool.run(
-    filename="./data/ai.txt",
+    filename="../data/ai.txt",
     content=text,
     overwrite="true"
 )
