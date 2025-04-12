@@ -178,3 +178,4 @@ cython_debug/
 # EddyGiusepe:
 data/
 *.txt
+db/
