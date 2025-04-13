@@ -1,0 +1,33 @@
+research_task:
+  description: >
+    Conduza uma pesquisa completa sobre {topic}. Enfatize:
+    1. Conceitos e definições chaves
+    2. Desenvolvimento histórico e tendências recentes
+    3. Desafios e oportunidades principais
+    4. Aplicativos ou casos de estudo notáveis
+    5. Perspectiva futura e desenvolvimentos potenciais
+
+    Certifique-se de organizar suas descobertas em um formato estruturado com seções claras.
+  expected_output: >
+    Um documento de pesquisa completo com seções bem organizadas que abrange
+    todos os aspectos solicitados de {topic}. Inclua fatos específicos, figuras,
+    e exemplos onde relevante.
+  agent: researcher
+
+analysis_task:
+  description: >
+    Analise as descobertas da pesquisa e crie um relatório completo sobre {topic}.
+    Seu relatório deve:
+    1. Começar com um resumo executivo
+    2. Incluir todas as informações chaves da pesquisa
+    3. Fornecer análise aprofundada de tendências e padrões
+    4. Oferecer recomendações ou considerações futuras
+    5. Ser formatado em um estilo profissional, fácil de ler, com cabeçalhos claros
+  expected_output: >
+    Um relatório profissional e bem estruturado sobre {topic} que apresenta
+    as descobertas com análise adicional e insights. O relatório deve ser
+    bem organizado com um resumo executivo, seções principais e conclusão.
+  agent: analyst
+  context:
+    - research_task
+  output_file: output/report.md
