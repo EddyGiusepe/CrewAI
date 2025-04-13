@@ -9,6 +9,8 @@ uv run main.py
 ou na raíz do projeto (research_crew)
 =====================================
 crewai run
+
+Link de estudo ---> https://docs.crewai.com/guides/crews/first-crew
 """
 import os
 from research_crew.crew import ResearchCrew
