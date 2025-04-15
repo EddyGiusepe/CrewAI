@@ -1,0 +1,53 @@
+# src/guide_creator_flow/crews/content_crew/config/tasks.yaml
+write_section_task:
+  description: >
+    Escreva uma seção completa sobre o assunto: "{section_title}"
+
+    Descrição da seção: {section_description}
+    Público alvo: {audience_level} nível de aprendizes
+
+    Seu conteúdo deve:
+    1. Começar com uma breve introdução ao assunto da seção
+    2. Explicar todos os conceitos chaves claramente com exemplos
+    3. Incluir aplicações práticas ou exercícios onde for apropriado
+    4. Terminar com um resumo dos pontos chaves
+    5. Ser aproximadamente 500-800 palavras em comprimento
+
+    Formate seu conteúdo em Markdown com cabeçalhos, listas e ênfase apropriada.
+
+    Seções anteriormente escritas:
+    {previous_sections}
+
+    Certifique-se de que seu conteúdo mantenha consistência com as seções anteriormente escritas
+    e construa sobre conceitos que já foram explicados.
+  expected_output: >
+    Uma seção abrangente e bem estruturada em formato Markdown que explica
+    completamente o tópico e é apropriada para o público-alvo.
+  agent: content_writer
+
+review_section_task:
+  description: >
+    Revise e melhore a seguinte seção sobre "{section_title}":
+
+    {draft_content}
+
+    Público alvo: {audience_level} nível de aprendizes
+
+    Seções anteriormente escritas:
+    {previous_sections}
+
+    Sua revisão deve:
+    1. Corrigir quaisquer erros gramaticais ou de ortografia
+    2. Melhorar a clareza e a legibilidade
+    3. Garantir que o conteúdo seja completo e preciso
+    4. Verificar a consistência com as seções anteriormente escritas
+    5. Melhorar a estrutura e o fluxo
+    6. Adicionar qualquer informação faltante
+
+    Forneça a versão melhorada da seção em formato Markdown.
+  expected_output: >
+    Uma versão melhorada, polida da seção que mantém a estrutura original
+    mas melhora a clareza, a precisão e a consistência.
+  agent: content_reviewer
+  context:
+    - write_section_task
