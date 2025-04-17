@@ -5,8 +5,10 @@ description = "A CrewAI é uma framework que permite aos desenvolvedores criar e
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
-    "crewai==0.114.0",
+    "crewai[tools]==0.114.0",
     "crewai-tools==0.40.1",
+    "ipykernel>=6.29.5",
+    "wikipedia>=1.4.0",
 ]
 
 [dependency-groups]
