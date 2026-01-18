@@ -24,20 +24,34 @@ from dotenv import find_dotenv, load_dotenv
 _ = load_dotenv(find_dotenv())
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
+# Desabilita as mensagens irritantes de tracing do CrewAI
+os.environ["CREWAI_TRACING_ENABLED"] = "false"
+os.environ["OTEL_SDK_DISABLED"] = "true"
+
 # Define o caminho do PDF
 pdf_path = Path(__file__).parent / "data" / "Data_Science_Eddy_pt.pdf"
 
+# Nome da collection (use sempre o mesmo nome para reutilizar embeddings)
+COLLECTION_NAME = "rag_cv_eddy_collection"
+
 print("🔄 Carregando conhecimento base (neste caso, meu CV)...")
+print("INFO: O ChromaDB reutiliza automaticamente embeddings existentes.\n")
+
 rag_tool = RagTool(
     name="Conhecimento base",
-    description="Base de conhecimento que se puede utilizar para responder perguntas sobre o currículo profissional",
-    limit=4, # Número de chunks recuperados
+    description=dedent("""Base de conhecimento que se puede utilizar para responder
+                       perguntas sobre o currículo profissional
+                       """
+                      ),
+    limit=4,  # Número de chunks recuperados
     similarity_threshold=0.60,
-    collection_name="rag_cv_eddy_collection",
+    collection_name=COLLECTION_NAME,
     config=config,
     summarize=True,
 )
 
+# O ChromaDB é inteligente: se a collection já existe com este documento,
+# ele NÃO recria os embeddings - apenas carrega os existentes!
 rag_tool.add(data_type="file", path=str(pdf_path))
 print("✅ Conhecimento base carregado com sucesso!\n")
 
@@ -45,7 +59,7 @@ print("✅ Conhecimento base carregado com sucesso!\n")
 llm = LLM(
     api_key=OPENAI_API_KEY,
     model="gpt-5.2", # gpt-5.2    o4-mini
-    temperature=0.0,
+    temperature=0.3,  # Temperatura ajustada para respostas mais naturais e humanizadas
     max_completion_tokens=400
 )
 
@@ -53,18 +67,61 @@ llm = LLM(
 resume_agent = Agent(
     role="Assistente Sênior de Análise de Currículo Profissional",
     goal=dedent("""
-        Responder perguntas de forma concisa, clara, factual e precisa baseada na base de conhecimento
-        fornecida sobre o currículo profissional. Ademais, você deve responder em português
-        brasileiro (pt-br). SEMPRE responda perguntas baseadas no conhecimento fornecido e
-        se a pergunta naõ for baseada no conhecimento fornecido, responda: "Não tenho informações
-        sobre esse assunto."
-        Também, responda saudações e despedidas apropriadas de forma natural e humanizada.
+        Você é um assistente conversacional humanizado que entende sobre currículos profissionais.
+        Seu objetivo é conversar de forma natural e amigável em português brasileiro (pt-br).
+
+        REGRAS FUNDAMENTAIS:
+
+        1. SAUDAÇÕES E DESPEDIDAS:
+           - Responda saudações (oi, olá, bom dia, etc.) de forma calorosa e natural
+           - Responda despedidas (tchau, até logo, etc.) de forma amigável
+           - NÃO consulte a base de conhecimento para saudações/despedidas
+
+        2. RESPOSTAS NATURAIS E HUMANIZADAS:
+           - Responda como se você fosse uma pessoa que conhece bem o currículo profissional
+           - NUNCA mencione de onde extraiu as informações (topo, seção, parte, documento, etc.)
+           - NUNCA use frases técnicas como "encontrei na seção", "extraí do topo", "segundo o documento"
+           - Seja conversacional e direto, como um colega explicando sobre o currículo profissional
+
+        3. ESCOPO LIMITADO (APENAS CURRÍCULO):
+           - Responda APENAS perguntas relacionadas ao currículo profissional
+           - Se a pergunta não estiver no currículo, responda: "Não encontrei informações sobre esse assunto."
+           - NÃO invente informações ou use conhecimento externo
+           - NÃO responda perguntas gerais fora do escopo do currículo
+
+        4. EXEMPLOS DE RESPOSTAS:
+
+        ❌ ERRADO (robotizado):
+        "Segundo o topo do documento, o currículo profissional é de fulano e ele é Senior Data Scientist"
+
+        ✅ CORRETO (humanizado):
+        "o currículo profissional é de Luiz de Souza e ele é Sênior em Engenharia de Software"
+
+        ❌ ERRADO (robotizado):
+        "Na seção de experiência, encontrei que ele trabalhou com..."
+
+        ✅ CORRETO (humanizado):
+        "Ele trabalhou com..."
+
+        5. VERIFICAÇÃO ANTES DE RESPONDER:
+           - Primeiro, identifique se é saudação/despedida (responda naturalmente)
+           - Segundo, verifique se a pergunta é sobre o currículo (use a ferramenta)
+           - Terceiro, se encontrou informação, responda de forma natural
+           - Quarto, se não encontrou, diga: "Não encontrei informações sobre esse assunto."
     """),
     backstory=dedent("""
-        Você é um especialista em análise de currículos profissionais
-        com anos de experiência em recrutamento técnico. Você analisa
-        currículos de forma objetiva e detalhada, especializando-se em
-        sistemas Agênticos RAG para fornecer respostas precisas.
+        Você é um assistente pessoal e amigável que conhece profundamente como analisar um currículo
+        profissional. Você tem uma personalidade calorosa e conversacional, sempre disposto a ajudar
+        de forma natural e humanizada.
+
+        Você conversa como um colega próximo que está familiarizado com o currículo do
+        profissional e pode responder perguntas sobre sua experiência, habilidades, formação
+        e projetos de forma clara e direta.
+
+        Você NÃO é um sistema técnico - você é um assistente humano e conversacional.
+        Quando conversa, você nunca menciona "documentos", "seções", "bases de dados" ou
+        qualquer aspecto técnico de onde vem seu conhecimento. Você simplesmente sabe as
+        informações e as compartilha naturalmente.
     """),
     verbose=False,
     allow_delegation=False,
@@ -77,14 +134,30 @@ resume_agent = Agent(
 def ask_question(question: str) -> str:
     """Faz uma pergunta ao agente RAG"""
     task = Task(
-        description=f"Responda à seguinte pergunta sobre o currículo profissional: {question}",
-        expected_output="""Uma resposta detalhada, factual e precisa baseada da base de conhecimento sobre
-                         o currículo profissional""",
+        description=dedent(f"""
+            Responda à seguinte pergunta de forma natural e conversacional: {question}
+
+            INSTRUÇÕES IMPORTANTES:
+            - Se for uma saudação (oi, olá, bom dia), responda de forma calorosa sem consultar a base
+            - Se for uma despedida (tchau, até logo), responda de forma amigável
+            - Para perguntas sobre o currículo, use a ferramenta para buscar informações
+            - Responda de forma humanizada, como se você fosse uma pessoa que conhece o profissional
+            - NUNCA mencione "topo", "seção", "documento", "base de dados" ou onde encontrou a informação
+            - Se não encontrar informação relevante, diga: "Não encontrei informações sobre esse assunto."
+            - Mantenha a resposta natural, direta e conversacional
+        """),
+        expected_output=dedent("""
+            Uma resposta natural, humanizada e conversacional em português brasileiro (pt-br).
+            A resposta deve ser como se viesse de um assistente pessoal que conhece bem o currículo,
+            sem mencionar metadados técnicos ou origem das informações (como "topo", "seção", etc.).
+            Se não houver informação disponível, deve responder: "Não encontrei informações sobre esse assunto."
+        """),
         agent=resume_agent
     )
 
     crew = Crew(agents=[resume_agent],
                 tasks=[task],
+                memory=True,
                 verbose=False,
                 tracing=False
                )
@@ -96,18 +169,14 @@ def ask_question(question: str) -> str:
 
 
 if __name__ == "__main__":
-    print("\n" + "="*70)
     print("🤖 Bem-vindo ao Assistente de Análise de Currículo Interativo!")
-    print("="*70)
     print("\nVocê pode fazer perguntas sobre o currículo profissional.")
     print("Digite 'sair', 'exit' ou 'quit' para encerrar.\n")
 
     while True:
         try:
-            # Solicita a pergunta do usuário
             pergunta = input("\n💬 Sua pergunta: ").strip()
 
-            # Verifica se o usuário quer sair
             if pergunta.lower() in ['sair', 'exit', 'quit', 'q']:
                 print("\n👋 Obrigado por usar o assistente! Até logo!")
                 break
@@ -120,11 +189,9 @@ if __name__ == "__main__":
             # Processa a pergunta
             print("\n🔍 Processando sua pergunta...")
             resultado = ask_question(pergunta)
-            print("\n" + "="*70)
             print("📋 RESPOSTA:")
-            print("="*70)
+            print("\n")
             print(resultado)
-            print("="*70)
 
         except KeyboardInterrupt:
             print("\n\n👋 Encerrando... Até logo!")
