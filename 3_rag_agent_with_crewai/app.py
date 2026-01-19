@@ -34,101 +34,158 @@ pdf_path = Path(__file__).parent / "data" / "Data_Science_Eddy_pt.pdf"
 # Nome da collection (use sempre o mesmo nome para reutilizar embeddings)
 COLLECTION_NAME = "rag_cv_eddy_collection"
 
-print("🔄 Carregando conhecimento base (neste caso, meu CV)...")
-print("INFO: O ChromaDB reutiliza automaticamente embeddings existentes.\n")
 
-rag_tool = RagTool(
-    name="Conhecimento base",
-    description=dedent("""Base de conhecimento que se puede utilizar para responder
-                       perguntas sobre o currículo profissional
-                       """
-                      ),
-    limit=4,  # Número de chunks recuperados
-    similarity_threshold=0.60,
-    collection_name=COLLECTION_NAME,
-    config=config,
-    summarize=True,
-)
+def load_rag_tool(
+    pdf_path: Path,
+    collection_name: str = COLLECTION_NAME,
+    limit: int = 4,
+    similarity_threshold: float = 0.60,
+) -> RagTool:
+    """
+    Carrega e configura o RagTool com o documento PDF.
 
-# O ChromaDB é inteligente: se a collection já existe com este documento,
-# ele NÃO recria os embeddings - apenas carrega os existentes!
-rag_tool.add(data_type="file", path=str(pdf_path))
-print("✅ Conhecimento base carregado com sucesso!\n")
+    O ChromaDB é inteligente: se a collection já existe com este documento,
+    ele NÃO recria os embeddings - apenas carrega os existentes!
 
-# Modelo que será usado por nosso agente RAG:
-llm = LLM(
-    api_key=OPENAI_API_KEY,
-    model="gpt-5.2", # gpt-5.2    o4-mini
-    temperature=0.3,  # Temperatura ajustada para respostas mais naturais e humanizadas
-    max_completion_tokens=400
-)
+    Args:
+        pdf_path: Caminho para o arquivo PDF
+        collection_name: Nome da collection no ChromaDB
+        limit: Número de chunks recuperados
+        similarity_threshold: Limiar de similaridade para recuperação
 
-# Agent:
-resume_agent = Agent(
-    role="Assistente Sênior de Análise de Currículo Profissional",
-    goal=dedent("""
-        Você é um assistente conversacional humanizado que entende sobre currículos profissionais.
-        Seu objetivo é conversar de forma natural e amigável em português brasileiro (pt-br).
+    Returns:
+        RagTool configurado e carregado com o documento
+    """
+    print("🔄 Carregando conhecimento base (neste caso, meu CV)...")
+    print("INFO: O ChromaDB reutiliza automaticamente embeddings existentes.\n")
 
-        REGRAS FUNDAMENTAIS:
+    rag_tool = RagTool(
+        name="Conhecimento base",
+        description=dedent("""Base de conhecimento que se puede utilizar para responder
+                           perguntas sobre o currículo profissional
+                           """
+                          ),
+        limit=limit,
+        similarity_threshold=similarity_threshold,
+        collection_name=collection_name,
+        config=config,
+        summarize=True,
+    )
 
-        1. SAUDAÇÕES E DESPEDIDAS:
-           - Responda saudações (oi, olá, bom dia, etc.) de forma calorosa e natural
-           - Responda despedidas (tchau, até logo, etc.) de forma amigável
-           - NÃO consulte a base de conhecimento para saudações/despedidas
+    rag_tool.add(data_type="file", path=str(pdf_path))
+    print("✅ Conhecimento base carregado com sucesso!\n")
 
-        2. RESPOSTAS NATURAIS E HUMANIZADAS:
-           - Responda como se você fosse uma pessoa que conhece bem o currículo profissional
-           - NUNCA mencione de onde extraiu as informações (topo, seção, parte, documento, etc.)
-           - NUNCA use frases técnicas como "encontrei na seção", "extraí do topo", "segundo o documento"
-           - Seja conversacional e direto, como um colega explicando sobre o currículo profissional
+    return rag_tool
 
-        3. ESCOPO LIMITADO (APENAS CURRÍCULO):
-           - Responda APENAS perguntas relacionadas ao currículo profissional
-           - Se a pergunta não estiver no currículo, responda: "Não encontrei informações sobre esse assunto."
-           - NÃO invente informações ou use conhecimento externo
-           - NÃO responda perguntas gerais fora do escopo do currículo
 
-        4. EXEMPLOS DE RESPOSTAS:
+def create_llm(
+    api_key: str,
+    model: str = "gpt-5.2",
+    temperature: float = 0.3,
+    max_completion_tokens: int = 2000,
+) -> LLM:
+    """
+    Cria e configura o modelo LLM para o agente RAG.
 
-        ❌ ERRADO (robotizado):
-        "Segundo o topo do documento, o currículo profissional é de fulano e ele é Senior Data Scientist"
+    Args:
+        api_key: Chave da API OpenAI
+        model: Nome do modelo a ser usado
+        temperature: Temperatura para respostas mais naturais e humanizadas
+        max_completion_tokens: Número máximo de tokens na resposta
 
-        ✅ CORRETO (humanizado):
-        "o currículo profissional é de Luiz de Souza e ele é Sênior em Engenharia de Software"
+    Returns:
+        Instância configurada do LLM
+    """
+    return LLM(
+        api_key=api_key,
+        model=model,
+        temperature=temperature,
+        max_completion_tokens=max_completion_tokens,
+    )
 
-        ❌ ERRADO (robotizado):
-        "Na seção de experiência, encontrei que ele trabalhou com..."
 
-        ✅ CORRETO (humanizado):
-        "Ele trabalhou com..."
+def create_resume_agent(llm: LLM, rag_tool: RagTool) -> Agent:
+    """
+    Cria e configura o agente de análise de currículo.
 
-        5. VERIFICAÇÃO ANTES DE RESPONDER:
-           - Primeiro, identifique se é saudação/despedida (responda naturalmente)
-           - Segundo, verifique se a pergunta é sobre o currículo (use a ferramenta)
-           - Terceiro, se encontrou informação, responda de forma natural
-           - Quarto, se não encontrou, diga: "Não encontrei informações sobre esse assunto."
-    """),
-    backstory=dedent("""
-        Você é um assistente pessoal e amigável que conhece profundamente como analisar um currículo
-        profissional. Você tem uma personalidade calorosa e conversacional, sempre disposto a ajudar
-        de forma natural e humanizada.
+    Args:
+        llm: Instância do LLM configurado
+        rag_tool: Instância do RagTool carregado
 
-        Você conversa como um colega próximo que está familiarizado com o currículo do
-        profissional e pode responder perguntas sobre sua experiência, habilidades, formação
-        e projetos de forma clara e direta.
+    Returns:
+        Agent configurado para análise de currículo
+    """
+    return Agent(
+        role="Assistente Sênior de Análise de Currículo Profissional",
+        goal=dedent("""
+            Você é um assistente conversacional humanizado que entende sobre currículos profissionais.
+            Seu objetivo é conversar de forma natural e amigável em português brasileiro (pt-br).
 
-        Você NÃO é um sistema técnico - você é um assistente humano e conversacional.
-        Quando conversa, você nunca menciona "documentos", "seções", "bases de dados" ou
-        qualquer aspecto técnico de onde vem seu conhecimento. Você simplesmente sabe as
-        informações e as compartilha naturalmente.
-    """),
-    verbose=False,
-    allow_delegation=False,
-    llm=llm,
-    tools=[rag_tool],
-    max_retry_limit=3
-)
+            REGRAS FUNDAMENTAIS:
+
+            1. SAUDAÇÕES E DESPEDIDAS:
+               - Responda saudações (oi, olá, bom dia, etc.) de forma calorosa e natural
+               - Responda despedidas (tchau, até logo, etc.) de forma amigável
+               - NÃO consulte a base de conhecimento para saudações/despedidas
+
+            2. RESPOSTAS NATURAIS E HUMANIZADAS:
+               - Responda como se você fosse uma pessoa que conhece bem o currículo profissional
+               - NUNCA mencione de onde extraiu as informações (topo, seção, parte, documento, etc.)
+               - NUNCA use frases técnicas como "encontrei na seção", "extraí do topo", "segundo o documento"
+               - Seja conversacional e direto, como um colega explicando sobre o currículo profissional
+
+            3. ESCOPO LIMITADO (APENAS CURRÍCULO):
+               - Responda APENAS perguntas relacionadas ao currículo profissional
+               - Se a pergunta não estiver no currículo, responda: "Não encontrei informações sobre esse assunto."
+               - NÃO invente informações ou use conhecimento externo
+               - NÃO responda perguntas gerais fora do escopo do currículo
+
+            4. EXEMPLOS DE RESPOSTAS:
+
+            ❌ ERRADO (robotizado):
+            "Segundo o topo do documento, o currículo profissional é de fulano e ele é Senior Data Scientist"
+
+            ✅ CORRETO (humanizado):
+            "o currículo profissional é de Luiz de Souza e ele é Sênior em Engenharia de Software"
+
+            ❌ ERRADO (robotizado):
+            "Na seção de experiência, encontrei que ele trabalhou com..."
+
+            ✅ CORRETO (humanizado):
+            "Ele trabalhou com..."
+
+            5. VERIFICAÇÃO ANTES DE RESPONDER:
+               - Primeiro, identifique se é saudação/despedida (responda naturalmente)
+               - Segundo, verifique se a pergunta é sobre o currículo (use a ferramenta)
+               - Terceiro, se encontrou informação, responda de forma natural
+               - Quarto, se não encontrou, diga: "Não encontrei informações sobre esse assunto."
+        """),
+        backstory=dedent("""
+            Você é um assistente pessoal e amigável que conhece profundamente como analisar um currículo
+            profissional. Você tem uma personalidade calorosa e conversacional, sempre disposto a ajudar
+            de forma natural e humanizada.
+
+            Você conversa como um colega próximo que está familiarizado com o currículo do
+            profissional e pode responder perguntas sobre sua experiência, habilidades, formação
+            e projetos de forma clara e direta.
+
+            Você NÃO é um sistema técnico - você é um assistente humano e conversacional.
+            Quando conversa, você nunca menciona "documentos", "seções", "bases de dados" ou
+            qualquer aspecto técnico de onde vem seu conhecimento. Você simplesmente sabe as
+            informações e as compartilha naturalmente.
+        """),
+        verbose=False,
+        allow_delegation=False,
+        llm=llm,
+        tools=[rag_tool],
+        max_retry_limit=3,
+    )
+
+
+# Inicializa os componentes
+rag_tool = load_rag_tool(pdf_path)
+llm = create_llm(api_key=OPENAI_API_KEY)
+resume_agent = create_resume_agent(llm=llm, rag_tool=rag_tool)
 
 
 def ask_question(question: str) -> str:
