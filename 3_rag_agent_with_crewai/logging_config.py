@@ -4,8 +4,8 @@ Senior Data Scientist.: Dr. Eddy Giusepe Chirinos Isidro
 
 Script logging_config.py
 ========================
-Este script contém a configuração de logging para a aplicação
-Agente RAG com dados de algum currículo profissional.
+This script contains the logging configuration for the application
+of the RAG agent with professional curriculum data.
 """
 import logging
 from pathlib import Path
