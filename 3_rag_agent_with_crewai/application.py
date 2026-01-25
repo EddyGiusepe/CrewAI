@@ -52,7 +52,7 @@ COLLECTION_NAME = "rag_cv_eddy_collection"
 def load_rag_tool(
     pdf_path: Path,
     collection_name: str = COLLECTION_NAME,
-    limit: int = 4,
+    limit: int = 6,
     similarity_threshold: float = 0.70,
 ) -> RagTool:
     """
@@ -96,7 +96,7 @@ def load_rag_tool(
 
 def create_llm(
     api_key: str,
-    model: str = "gpt-4.1",  # gpt-5.1 gpt-5.2   gpt-4o-mini # Foi bom --> gpt-4.1
+    model: str = "gpt-5.2",  # gpt-5.1 gpt-5.2   gpt-4o-mini # Foi bom --> gpt-4.1
     temperature: float = 0.3,
     max_completion_tokens: int = 2000,
 ) -> LLM:
@@ -243,7 +243,7 @@ def ask_question(question: str) -> str:
     crew = Crew(
         agents=[resume_agent],
         tasks=[task],
-        memory=True,  # Usa por default no crewai text-embedding-3-small para memory_short e memory_entities
+        memory=True,  # Por default no crewai text-embedding-3-small, enables short-term, long-term, and entity memory
         verbose=False,
         tracing=False,
     )
