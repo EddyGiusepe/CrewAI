@@ -3,28 +3,28 @@ Senior Data Scientist.: Dr. Eddy Giusepe Chirinos Isidro
 
 Script ui.py
 ============
-Este script contém a interface de chat estilo ChatGPT
-com tema escuro moderno.
-Para a criação desta interface, usamos o framework ReactPy.
+This script contains the chat interface styled like ChatGPT
+with dark modern theme.
+For the creation of this interface, we use the ReactPy framework.
 
 Run
 ===
 uv run ui.py
 
-Acesse: http://localhost:8000
+Access: http://localhost:8000
 """
 
 import asyncio
 
 import uvicorn
-from application import ask_question  # Importa o agente RAG do app.py
+from application import ask_question  # Import the RAG agent from application.py
 from fastapi import FastAPI
 from reactpy import component, hooks, html
 from reactpy.backend.fastapi import configure
 
-# =========================
-# ESTILOS CSS (Tema Escuro)
-# =========================
+# =======================
+# CSS STYLES (Dark Theme)
+# =======================
 COLORS = {
     "background": "#1a1a2e",
     "card": "#16213e",
@@ -44,12 +44,12 @@ FONTS = {
 }
 
 
-# ===========
-# COMPONENTES
-# ===========
+# ==========
+# COMPONENTS
+# ==========
 @component
 def chat_message(role: str, content: str):
-    """Renderiza uma mensagem individual do chat."""
+    """Render a single message of the chat."""
     is_user = role == "user"
 
     container_style = {
@@ -87,7 +87,7 @@ def chat_message(role: str, content: str):
         "letterSpacing": "0.5px",
     }
 
-    role_text = "Você" if is_user else "🤖 Assistente"
+    role_text = "You" if is_user else "🤖 Assistant"
 
     return html.div(
         {"style": container_style},
@@ -101,7 +101,7 @@ def chat_message(role: str, content: str):
 
 @component
 def loading_indicator():
-    """Indicador de carregamento animado."""
+    """Animated loading indicator."""
     container_style = {
         "display": "flex",
         "justifyContent": "flex-start",
@@ -134,16 +134,16 @@ def loading_indicator():
                         "textTransform": "uppercase",
                     }
                 },
-                "Assistente",
+                "Assistant",
             ),
-            html.div("Processando sua pergunta..."),
+            html.div("Processing your question..."),
         ),
     )
 
 
 @component
 def chat_input(on_send, is_loading: bool):
-    """Campo de input para enviar mensagens."""
+    """Input field to send messages."""
     input_value, set_input_value = hooks.use_state("")
 
     container_style = {
@@ -201,7 +201,7 @@ def chat_input(on_send, is_loading: bool):
                 "value": input_value,
                 "onChange": handle_input_change,
                 "onKeyPress": handle_key_press,
-                "placeholder": "Digite sua pergunta sobre o currículo...",
+                "placeholder": "Enter your question about the curriculum...",
                 "style": input_style,
                 "disabled": is_loading,
             }
@@ -219,7 +219,7 @@ def chat_input(on_send, is_loading: bool):
 
 @component
 def header_ui():
-    """Cabeçalho da aplicação."""
+    """Application header."""
     header_style = {
         "padding": "24px 20px",
         "backgroundColor": COLORS["card"],
@@ -252,7 +252,7 @@ def header_ui():
         html.h1(
             {"style": title_style},
             html.span({"style": accent_style}, "RAG "),
-            "Assistente de Currículo",
+            "Resume Analysis Agent",
         ),
         # html.p(
         #    {"style": subtitle_style},
@@ -263,7 +263,7 @@ def header_ui():
 
 @component
 def welcome_message():
-    """Mensagem de boas-vindas quando não há mensagens."""
+    """Welcome message when there are no messages."""
     container_style = {
         "display": "flex",
         "flexDirection": "column",
@@ -315,24 +315,24 @@ def welcome_message():
     return html.div(
         {"style": container_style},
         html.div({"style": icon_style}, "💼"),
-        html.h2({"style": title_style}, "Bem-vindo ao Assistente de Currículo!"),
+        html.h2({"style": title_style}, "Welcome to the Resume Analysis Agent!"),
         html.p(
             {"style": text_style},
-            "Estou aqui para ajudá-lo com informações sobre o currículo profissional.",
+            "I am here to help you with information about the professional curriculum.",
         ),
         html.div(
             {"style": suggestions_style},
             html.div(
                 {"style": suggestion_style},
-                "💡 Exemplo 1: Sobre quem está falando o currículo profissional?",
+                "💡 Example 1: About who is talking about the professional curriculum?",
             ),
             html.div(
                 {"style": suggestion_style},
-                "💡 Exemplo 2: Quais são as habilidades técnicas desse profissional?",
+                "💡 Example 2: What are the technical skills of this professional?",
             ),
             html.div(
                 {"style": suggestion_style},
-                "💡 Exemplo 3: Qual é a formação acadêmica desse profissional?",
+                "💡 Example 3: What is the academic formation of this professional?",
             ),
         ),
     )
@@ -340,40 +340,40 @@ def welcome_message():
 
 @component
 def chat_app():
-    """Componente principal do chat."""
+    """Main component of the chat."""
     messages, set_messages = hooks.use_state([])
     is_loading, set_is_loading = hooks.use_state(False)
     pending_question, set_pending_question = hooks.use_state(None)
 
     @hooks.use_effect(dependencies=[pending_question])
     async def process_pending_question():
-        """Processa a pergunta pendente quando ela muda."""
+        """Process the pending question when it changes."""
         if pending_question is None:
             return
 
         try:
-            # Executa a função ask_question em uma thread separada
+            # Execute the ask_question function in a separate thread:
             loop = asyncio.get_event_loop()
             result = await loop.run_in_executor(None, ask_question, pending_question)
             response = str(result)
         except Exception as e:
-            response = f"Erro ao processar pergunta: {e!s}"
+            response = f"Error processing question: {e!s}"
 
-        # Adiciona a resposta do assistente
+        # Add the assistant's response:
         assistant_message = {"role": "assistant", "content": response}
         set_messages(lambda prev: [*prev, assistant_message])
         set_is_loading(False)
         set_pending_question(None)
 
     def handle_send(message: str):
-        """Manipula o envio de uma nova mensagem."""
-        # Adiciona a mensagem do usuário
+        """Handle the sending of a new message."""
+        # Add the user's message:
         new_user_message = {"role": "user", "content": message}
         set_messages(lambda prev: [*prev, new_user_message])
         set_is_loading(True)
         set_pending_question(message)
 
-    # Estilos do container principal
+    # Main container styles:
     app_style = {
         "display": "flex",
         "flexDirection": "column",
@@ -389,7 +389,7 @@ def chat_app():
         "scrollBehavior": "smooth",
     }
 
-    # CSS global para scrollbar e fonte
+    # Global CSS styles for scrollbar and font:
     global_style = f"""
         @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&display=swap');
 
@@ -432,7 +432,7 @@ def chat_app():
         }}
     """
 
-    # Renderiza as mensagens
+    # Render the messages:
     message_elements = []
     if messages:
         for idx, msg in enumerate(messages):
@@ -453,21 +453,21 @@ def chat_app():
     )
 
 
-# ====================
-# EXECUÇÃO COM FASTAPI
-# ====================
+# ======================
+# EXECUTION WITH FASTAPI
+# ======================
 app = FastAPI(
     title="Agentic RAG API with CrewAI",
-    description="Este é um agente rag que analisa o currículo profissional e responde perguntas sobre ele.",
+    description="This is a RAG agent that analyzes the professional curriculum and answers questions about it.",
     version="1.0.0",
 )
 configure(app, chat_app)
 
 
 if __name__ == "__main__":
-    print("🚀 Iniciando servidor ReactPy...")
-    print("📍 Acesse: http://localhost:8000")
-    print("🛑 Pressione Ctrl+C para encerrar\n")
+    print("🚀 Starting ReactPy server...")
+    print("📍 Access: http://localhost:8000")
+    print("🛑 Press Ctrl+C to stop\n")
 
-    # Usa string de importação "modulo:variavel" para permitir reload:
+    # Use string of import "module:variable" to allow reload:
     uvicorn.run("ui:app", host="0.0.0.0", port=8000, reload=True)
