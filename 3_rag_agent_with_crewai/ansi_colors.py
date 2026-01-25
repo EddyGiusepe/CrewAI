@@ -4,7 +4,7 @@ Senior Data Scientist.: Dr. Eddy Giusepe Chirinos Isidro
 
 Script ansi_colors.py
 =====================
-Este script contém códigos ANSI para formatação de cores no terminal.
+This script contains ANSI codes for color formatting in the terminal.
 """
 from logging_config import (
     get_logger,
