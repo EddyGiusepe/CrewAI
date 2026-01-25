@@ -3,18 +3,17 @@ Senior Data Scientist.: Dr. Eddy Giusepe Chirinos Isidro
 
 Script application.py
 =====================
-Este script contém a aplicação do agente RAG com CrewAI.
-Aqui usamos o ChromaDB para armazenar os documentos e o modelo
-de embedding OpenAI para criar os embeddings.
-Ademais, usamos ragtool como ferramenta para buscar informações
-no currículo profissional e o modelo de LLM OpenAI para responder
-as perguntas do usuário.
+This script contains the application of the RAG agent with CrewAI.
+Here we use ChromaDB to store the documents and the OpenAI embedding
+model to create the embeddings. Moreover, we use ragtool as a tool
+to search for information in the professional curriculum and the
+OpenAI LLM model to answer the user's questions.
 
 https://docs.crewai.com/en/tools/ai-ml/ragtool
 
 Run
 ===
-uv run app.py
+uv run application.py
 
 UI with ReactPy
 ===============
@@ -38,14 +37,14 @@ logger = get_logger(__name__)
 _ = load_dotenv(find_dotenv())
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
-# Desabilita as mensagens irritantes de tracing do CrewAI
+# Disable crewAI tracing messages:
 os.environ["CREWAI_TRACING_ENABLED"] = "false"
 os.environ["OTEL_SDK_DISABLED"] = "true"
 
-# Define o caminho do PDF
+# Define the path to the PDF file:
 pdf_path = Path(__file__).parent / "data" / "Data_Science_Eddy_pt.pdf"
 
-# Nome da collection (use sempre o mesmo nome para reutilizar embeddings)
+# Name of the collection (use always the same name to reuse embeddings):
 COLLECTION_NAME = "rag_cv_eddy_collection"
 
 
@@ -56,26 +55,26 @@ def load_rag_tool(
     similarity_threshold: float = 0.70,
 ) -> RagTool:
     """
-    Carrega e configura o RagTool com o documento PDF.
+    Loads and configures the RagTool with the PDF file.
 
-    O ChromaDB é inteligente: se a collection já existe com este documento,
-    ele NÃO recria os embeddings - apenas carrega os existentes!
+    ChromaDB is intelligent: if the collection already exists with this document,
+    it does NOT recreate the embeddings - it only loads the existing ones!
 
     Args:
-        pdf_path: Caminho para o arquivo PDF
-        collection_name: Nome da collection no ChromaDB
-        limit: Número de chunks recuperados
-        similarity_threshold: Limiar de similaridade para recuperação
+        pdf_path: Path to the PDF file
+        collection_name: Name of the collection in ChromaDB
+        limit: Number of chunks retrieved
+        similarity_threshold: Similarity threshold for retrieval
 
     Returns:
-        RagTool configurado e carregado com o documento
+        RagTool configured and loaded with the PDF file
     """
 
     rag_tool = RagTool(
-        name="Conhecimento base",
+        name="Knowledge base",
         description=dedent(
-            """Base de conhecimento que se deve utilizar para responder
-                              perguntas sobre o currículo profissional.
+            """Knowledge base to be used to answer questions about the
+                              professional curriculum.
                            """
         ),
         limit=limit,
@@ -84,12 +83,10 @@ def load_rag_tool(
         config=config,
         summarize=True,
     )
-    logger.info(f"{CYAN}🔄 Carregando conhecimento base (neste caso, meu CV)...{RESET}")
-    logger.info(
-        f"{CYAN}O ChromaDB reutiliza automaticamente embeddings existentes.{RESET}"
-    )
+    logger.info(f"{CYAN}🔄 Loading knowledge base (in this case, my CV)...{RESET}")
+    logger.info(f"{CYAN}ChromaDB automatically reuses existing embeddings.{RESET}")
     rag_tool.add(data_type="file", path=str(pdf_path))
-    logger.info(f"{GREEN}✅ Conhecimento base carregado com sucesso!{RESET}")
+    logger.info(f"{GREEN}✅ Knowledge base loaded successfully!{RESET}")
 
     return rag_tool
 
@@ -101,16 +98,16 @@ def create_llm(
     max_completion_tokens: int = 2000,
 ) -> LLM:
     """
-    Cria e configura o modelo LLM para o agente RAG.
+    Creates and configures the LLM model for the RAG agent.
 
     Args:
-        api_key: Chave da API OpenAI
-        model: Nome do modelo a ser usado
-        temperature: Temperatura para respostas mais naturais e humanizadas
-        max_completion_tokens: Número máximo de tokens na resposta
+        api_key: OpenAI API key
+        model: Name of the model to be used
+        temperature: Temperature for more natural and humanized responses
+        max_completion_tokens: Maximum number of tokens in the response
 
     Returns:
-        Instância configurada do LLM
+        Configured instance of the LLM
     """
     return LLM(
         api_key=api_key,
@@ -122,78 +119,80 @@ def create_llm(
 
 def create_resume_agent(llm: LLM, rag_tool: RagTool) -> Agent:
     """
-    Cria e configura o agente que irá analisar o currículo.
+    Creates and configures the agent that will analyze the curriculum.
 
     Args:
-        llm: Instância do LLM configurado
-        rag_tool: Instância do RagTool carregado
+        llm: Configured instance of the LLM
+        rag_tool: Configured instance of the RagTool
 
     Returns:
-        Agent configurado para analisar o currículo
+        Agent configured to analyze the curriculum
     """
     return Agent(
-        role="Assistente experto em análise de currículo profissional",
+        role="Expert assistant in professional curriculum analysis",
         goal=dedent(
             """
-            Você é um assistente conversacional experto em análise de currículo profissional.
-            Seu objetivo é responder às perguntas do usuário sobre a análise de currículo profissional
-            de forma natural, amigável em português brasileiro (pt-br).
+            You are an expert conversational assistant in professional curriculum analysis.
+            Your objective is to answer the user's questions about the professional curriculum
+            analysis in a natural, friendly way in English.
 
-            REGRAS FUNDAMENTAIS:
+            FUNDAMENTAL RULES:
 
-            1. SAUDAÇÕES E DESPEDIDAS:
-               - Responda saudações (oi, olá, bom dia, etc.) de forma calorosa e natural
-               - Responda despedidas (tchau, até logo, etc.) de forma amigável
-               - NÃO consulte a base de conhecimento para saudações/despedidas
+            1. GREETINGS AND FAREWELLS:
+               - Respond to greetings (hi, hello, good day, etc.) in a warm and natural way
+               - Respond to farewells (bye, goodbye, etc.) in a friendly way
+               - DO NOT consult the knowledge base for greetings/farewells
 
-            2. RESPOSTAS NATURAIS E HUMANIZADAS:
-               - Responda como se você fosse uma pessoa que conhece bem o currículo profissional
-               - NUNCA mencione de onde extraiu as informações (topo, seção, parte, documento, etc.)
-               - NUNCA use frases técnicas como "encontrei na seção", "extraí do topo", "segundo o documento"
-               - Seja conversacional e direto, como um colega explicando sobre o currículo profissional
+            2. NATURAL AND HUMANIZED RESPONSES:
+               - Respond as if you were a person who knows the professional curriculum well
+               - DO NOT mention where you found the information (top, section, part, document, etc.)
+               - DO NOT use technical phrases like "found in the section", "extracted from the top",
+                 "according to the document", etc.
+               - Be conversational and direct, like a colleague explaining about the professional curriculum
 
-            3. ESCOPO LIMITADO (APENAS CURRÍCULO):
-               - Responda APENAS perguntas relacionadas ao currículo profissional
-               - Se a pergunta não estiver no currículo, responda: "Não encontrei informações sobre esse assunto."
-               - NÃO invente informações ou use conhecimento externo
-               - NÃO responda perguntas gerais fora do escopo do currículo
-               - Se a pergunta conter saudação e pergunta sobre o currículo, responda de forma natural e amigável.
+            3. LIMITED SCOPE (ONLY CURRICULUM):
+               - Respond only questions related to the professional curriculum
+               - If the question is not related to the curriculum, respond: "I did not find information about
+                 that subject."
+               - DO NOT invent information or use external knowledge
+               - DO NOT answer general questions outside the scope of the curriculum
+               - If the question contains a greeting and asks about the curriculum, respond in a natural and
+                 friendly way.
 
-            4. EXEMPLOS DE RESPOSTAS:
+            4. EXAMPLES OF RESPONSES:
 
-            ❌ ERRADO (robotizado):
-            "Segundo o topo do documento, o currículo profissional é de fulano e ele é um Engenheiro de Software"
+            ❌ WRONG (robotized):
+            "According to the top of the document, the professional curriculum is of fulano and he
+             is a Software Engineer"
 
-            ✅ CORRETO (humanizado):
-            "o currículo profissional é de Luiz de Souza e ele é um Arquiteto de Software"
+            ✅ RIGHT (humanized):
+            "The professional curriculum is of Luiz de Souza and he is a Software Architect"
 
-            ❌ ERRADO (robotizado):
-            "Na seção de experiência, encontrei que ele trabalhou com..."
+            ❌ WRONG (robotized):
+            "In the experience section, I found that he worked with..."
 
-            ✅ CORRETO (humanizado):
-            "Ele trabalhou com..."
+            ✅ RIGHT (humanized):
+            "He worked with..."
 
-            5. VERIFICAÇÃO ANTES DE RESPONDER:
-               - Primeiro, identifique se é saudação/despedida (responda naturalmente)
-               - Segundo, verifique se a pergunta é sobre o currículo (use a ferramenta)
-               - Terceiro, se encontrou informação, responda de forma natural
-               - Quarto, se não encontrou, diga: "Não encontrei informações sobre esse assunto."
+            5. VERIFICATION BEFORE RESPONDING:
+               - First, identify if it is a greeting/farewell (respond naturally)
+               - Second, check if the question is about the curriculum (use the tool)
+               - Third, if you found information, respond in a natural way
+               - Fourth, if you did not find information, say: "I did not find information about that subject."
         """
         ),
         backstory=dedent(
             """
-            Você é um assistente pessoal e amigável que conhece profundamente como analisar um currículo
-            profissional. Você tem uma personalidade calorosa e conversacional, sempre disposto a ajudar
-            de forma natural e humanizada.
+            You are a personal and friendly assistant who deeply knows how to analyze a professional curriculum.
+            You have a warm and conversational personality, always willing to help in a natural and humanized way.
 
-            Você conversa como um colega próximo que está familiarizado com o currículo do
-            profissional e pode responder perguntas sobre sua experiência, habilidades, formação
-            e projetos de forma clara e direta.
+            You converse like a close colleague who is familiar with the professional curriculum and can answer
+            questions about their experience, skills, education, and projects in a clear and direct way.
 
-            Você NÃO é um sistema técnico - você é um assistente humanizado e conversacional.
-            Quando conversa, você nunca menciona "documentos", "seções", "bases de dados", "topo", "seção", "documento"
-            ou qualquer aspecto técnico de onde vem seu conhecimento. Você simplesmente sabe as
-            informações e as compartilha naturalmente.
+            You are NOT a technical system - you are a humanized and conversational assistant.
+            When you converse, you never mention "documents", "sections", "databases", "top", "section", "document"
+            or any technical aspect of where your knowledge comes from. You simply know the information and share it
+            naturally.
         """
         ),
         verbose=False,
@@ -204,37 +203,38 @@ def create_resume_agent(llm: LLM, rag_tool: RagTool) -> Agent:
     )
 
 
-# Inicializa os componentes
+# Initialize the components:
 rag_tool = load_rag_tool(pdf_path)
 llm = create_llm(api_key=OPENAI_API_KEY)
 resume_agent = create_resume_agent(llm=llm, rag_tool=rag_tool)
 
 
 def ask_question(question: str) -> str:
-    """Faz uma pergunta ao agente RAG"""
+    """Ask a question to the RAG agent"""
     task = Task(
         description=dedent(
             f"""
-            Responda à seguinte pergunta de forma natural e conversacional: {question}
+            Respond to the following question in a natural and conversational way: {question}
 
-            INSTRUÇÕES IMPORTANTES:
-            - Se for uma saudação (oi, olá, bom dia, etc.), responda de forma calorosa sem consultar a base
-            - Se for uma despedida (tchau, até logo, etc.), responda de forma amigável
-            - Para perguntas sobre o currículo, use a ferramenta para buscar informações
-            - Responda de forma humanizada, como se você fosse uma pessoa que conhece o currículo profissional
-            - NUNCA mencione "topo", "seção", "documento", "base de dados" ou onde encontrou a informação
-            - Se não encontrar informação relevante, diga: "Não encontrei informações sobre esse assunto no currículo
-              profissional."
-            - Mantenha a resposta natural, direta e conversacional
-            - Se a pergunta conter saudação e pergunta sobre o currículo, responda de forma natural e amigável.
+            IMPORTANT INSTRUCTIONS:
+            - If it is a greeting (hi, hello, good day, etc.), respond in a warm way without consulting the base
+            - If it is a farewell (bye, goodbye, etc.), respond in a friendly way
+            - For questions about the curriculum, use the tool to search for information
+            - Respond in a humanized way, as if you were a person who knows the professional curriculum
+            - DO NOT mention "top", "section", "document", "database" or where you found the information
+            - If you do not find relevant information, say: "I did not find information about that subject in the
+              professional curriculum."
+            - Keep the response natural, direct and conversational
+            - If the question contains a greeting and asks about the curriculum, respond in a natural and friendly way.
         """
         ),
         expected_output=dedent(
             """
-            Uma resposta natural, humanizada e conversacional em português brasileiro (pt-br).
-            A resposta deve ser como se viesse de um assistente experto e que conhece bem o currículo,
-            sem mencionar metadados técnicos ou origem das informações (como "topo", "seção", etc.).
-            Se não houver informação disponível, deve responder: "Não encontrei informações sobre esse assunto."
+            A natural, humanized and conversational response in Portuguese (pt-br).
+            The response should be like if it came from an expert assistant who knows the curriculum well,
+            without mentioning technical metadata or the origin of the information (like "top", "section", etc.).
+            If there is no information available, respond: "I did not find information about that subject in the
+            professional curriculum."
         """
         ),
         agent=resume_agent,
@@ -243,7 +243,7 @@ def ask_question(question: str) -> str:
     crew = Crew(
         agents=[resume_agent],
         tasks=[task],
-        memory=True,  # Por default no crewai text-embedding-3-small, enables short-term, long-term, and entity memory
+        memory=True,  # By default in crewai text-embedding-3-small, enables short-term, long-term, and entity memory
         verbose=False,
         tracing=False,
     )
@@ -254,34 +254,34 @@ def ask_question(question: str) -> str:
 
 if __name__ == "__main__":
     logger.info(
-        f"{YELLOW}🤖 Bem-vindo ao Assistente de Análise de Currículo Interativo! 🤖{RESET}"
+        f"{YELLOW}🤖 Welcome to the RAG Interactive Resume Analysis Agent! 🤖{RESET}"
     )
-    logger.info(f"{MAGENTA}Digite 'sair', 'exit' ou 'quit' para encerrar.{RESET}")
+    logger.info(f"{MAGENTA}Type 'exit', 'quit' or 'q' to end.{RESET}")
 
     while True:
         try:
-            pergunta = input(f"{RED}💬 Sua pergunta: {RESET}").strip()
+            question = input(f"{RED}💬 Your question: {RESET}").strip()
 
-            if pergunta.lower() in ["sair", "exit", "quit", "q"]:
+            if question.lower() in ["exit", "quit", "q"]:
                 logger.info(
-                    f"{GREEN}👋 Obrigado por usar o assistente! Até logo!{RESET}"
+                    f"{GREEN}👋 Thank you for using the assistant! Goodbye!{RESET}"
                 )
                 break
 
-            # Verifica se a pergunta não está vazia
-            if not pergunta:
-                logger.info(f"{RED}⚠️  Por favor, digite uma pergunta válida.{RESET}")
+            # Check if the question is not empty:
+            if not question:
+                logger.info(f"{RED}⚠️  Please enter a valid question.{RESET}")
                 continue
 
-            # Processa a pergunta
-            logger.info(f"{CYAN}🔍 Processando sua pergunta...{RESET}")
-            resultado = ask_question(pergunta)
-            print(f"{CYAN}📋 RESPOSTA:{RESET}")
-            print(resultado)
+            # Process the question:
+            logger.info(f"{CYAN}🔍 Processing your question...{RESET}")
+            result = ask_question(question)
+            print(f"{CYAN}📋 ANSWER:{RESET}")
+            print(result)
 
         except KeyboardInterrupt:
-            logger.info(f"{GREEN}👋 Encerrando... Até logo!{RESET}")
+            logger.info(f"{GREEN}👋 Ending... Goodbye!{RESET}")
             break
         except Exception as e:
-            logger.error(f"{RED}❌ Erro ao processar pergunta: {e}{RESET}")
-            logger.info(f"{RED}Por favor, tente novamente.{RESET}")
+            logger.error(f"{RED}❌ Error processing question: {e}{RESET}")
+            logger.info(f"{RED}Please try again.{RESET}")
